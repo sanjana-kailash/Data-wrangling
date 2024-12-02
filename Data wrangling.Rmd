@@ -1,0 +1,401 @@
+---
+title: "Data Wrangling"
+author: "Student name submitting the assessment report comes here"
+subtitle: Practical assessment 2
+date: ""
+output:
+  html_notebook: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+
+## **Setup**
+
+```{r}
+
+library(kableExtra)
+library(magrittr)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(ggplot2)
+
+```
+
+
+## **Student names, numbers and percentage of contributions**
+```{r, echo=FALSE}
+
+na<- c(" Sanjana Kailasanathan")
+no<- c("  s4062761")
+
+
+s<- data.frame(cbind(na,no))
+colnames(s)<- c("Student name", "Student number")
+
+s %>% kbl(caption = "Group information") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+```
+<br>
+<br>
+
+## **Executive Summary**
+
+*Loading and Inspecting the Data:
+
+Imported two datasets: cardio_train.csv and medical_cost.csv.
+Verified the column names of both datasets to understand the structure.
+
+*Merging Datasets:
+
+Merged the two datasets on the common Id column to create a unified dataset.
+Managed missing values by either removing rows with NA values or filling them with 0.
+
+*Data Type Conversion:
+
+Converted relevant columns to factors to properly represent categorical variables.
+For example: gender, smoke, alco, cholesterol.
+Labeled factor levels meaningfully (e.g., gender: 1 = Male, 2 = Female).
+Data Tidying:
+
+Filtered and reshaped data using pivot_wider to tidy an untidy dataset.
+Created new variables like bp_diff (difference between systolic and diastolic blood pressure) to enhance data analysis.
+
+*Handling Missing and Invalid Data:
+
+Identified the percentage of missing values for each column.
+Imputed missing numerical values with the column mean and filled missing categorical values using mode imputation.
+Managed outliers by detecting values beyond 1.5 * IQR and winsorized them to keep data within acceptable ranges.
+Data Transformation:
+
+*Performed a log transformation on skewed variables like charges to reduce skewness and improve data distribution.
+
+<br>
+<br>
+
+## **Data**
+
+```{r}
+
+cardio <- read.csv("C:/Users/sanja/Downloads/cardio_train.csv", sep = ";", header = TRUE)
+medical_cost <- read.csv("C:/Users/sanja/Downloads/medical_cost.csv")
+
+colnames(cardio)
+colnames(medical_cost)
+
+```
+* At first,we read the cardio_train.csv file and store it in the cardio data frame
+
+* sep = ";": Specifies that the columns in the dataset are separated by semicolons (;).
+
+* header = TRUE: Indicates that the first row contains the column names (headers).
+
+* We have done the same for medical_cost dataset as well.
+
+
+<br>
+<br>
+
+## **Understand** 
+
+
+```{r}
+
+combined_data <- merge(cardio, medical_cost, by = "Id", all = TRUE)
+
+head(combined_data)
+
+combined_data <- na.omit(combined_data)
+
+combined_data[is.na(combined_data)] <- 0
+
+medical_cost$sex <- as.factor(medical_cost$sex)  
+medical_cost$smoker <- as.factor(medical_cost$smoker)
+medical_cost$region <- as.factor(medical_cost$region)
+
+cardio$gender <- as.factor(cardio$gender)
+cardio$cholesterol <- as.factor(cardio$cholesterol)
+cardio$gluc <- as.factor(cardio$gluc)
+cardio$smoke <- as.factor(cardio$smoke)
+cardio$alco <- as.factor(cardio$alco)
+cardio$active <- as.factor(cardio$active)
+
+cardio$gender <- factor(cardio$gender, levels = c(1, 2), labels = c("Male", "Female"))
+cardio$cholesterol <- factor(cardio$cholesterol, levels = c(1, 2, 3), labels = c("Normal", "Above Normal", "Well Above Normal"))
+head(cardio$gender)
+head(cardio$cholesterol)
+
+```
+
+We have :
+
+Merged two datasets using the Id column, keeping all data from both datasets.
+
+Managed missing values by either removing rows with NA or replacing NA with 0.
+
+Categorical variables such as sex, smoker, and region in the medical_cost dataset, along with gender, cholesterol, and other lifestyle variables in cardio, are converted into factors to ensure proper treatment during analysis. 
+
+Assigned meaningful labels to numerical codes in the gender and cholesterol columns for clarity and ease of analysis.
+
+<br>
+<br>
+
+##	**Tidy & Manipulate Data I **
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+
+untidy_cardio <- read.csv("C:/Users/sanja/Downloads/untidy_cardio_train.csv")
+head(untidy_cardio)
+
+tidy_cardio <- untidy_cardio %>% filter(!height_cm %in% c("combined_metric", "cholesterol_level_1", "cholesterol_level_2"))
+colnames(tidy_cardio)
+
+tidy_cardio <- tidy_cardio %>%
+  mutate(across(where(is.list), ~ sapply(., toString)))
+
+head(tidy_cardio)
+
+write.csv(tidy_cardio, "C:/Users/sanja/Downloads/tidy_cardio_train.csv", row.names = FALSE)
+
+cardio_train <- read.csv("C:/Users/sanja/Downloads/tidy_cardio_train.csv")
+
+cardio_train <- cardio_train %>% mutate(bp_diff = ap_hi - ap_lo)
+
+head(cardio_train)
+
+write.csv(cardio_train, "C:/Users/sanja/Downloads/tidy_cardio_train.csv", row.names = FALSE)
+
+```
+
+Here,we have:
+
+Loaded an untidy dataset and filtered out unwanted rows using filter().
+
+Used mutate() to reshape the data, converting values from the height_cm column into new columns.
+
+Created a new variable, bp_diff, representing the difference between systolic and diastolic blood pressure.
+
+Saved the tidied and updated datasets at different stages for future use and inspection.
+
+<br>
+<br>
+
+## **Tidy & Manipulate Data II** 
+
+```{r}
+
+library(dplyr)
+library(tidyr)
+
+untidy_medical_cost <- read.csv("C:/Users/sanja/Downloads/untidy_medical_cost.csv")
+
+head(untidy_medical_cost)
+
+
+tidy_medical_cost <- untidy_medical_cost %>% pivot_wider(names_from = metric, values_from = value)
+head(tidy_medical_cost)
+
+write.csv(tidy_medical_cost, "C:/Users/sanja/Downloads/tidy_medical_cost.csv", row.names = FALSE)
+
+head(tidy_medical_cost)
+
+medical_cost <- medical_cost %>% mutate(cost_per_child = ifelse(children > 0, charges / children, NA))
+head(medical_cost)
+
+write.csv(medical_cost, "C:/Users/sanja/Downloads/tidy_medical_cost.csv", row.names = FALSE)
+
+
+```
+
+Here we have,
+
+Loaded the untidy medical cost dataset.
+
+Reshaped the dataset using pivot_wider() to convert metric values into new columns.*Created a new variable, cost_per_child, to calculate the per-child medical cost.
+
+Saved the updated datasets at different stages to ensure reproducibility and further analysis
+
+
+<br>
+<br>
+
+##	**Scan I **
+
+
+```{r}
+
+# This is the R chunk for the Scan I
+missing_cardio <- sapply(cardio_train, function(x) sum(is.na(x)) / length(x) * 100)
+missing_cardio
+
+cardio_train <- cardio_train %>%  mutate(across(where(is.numeric), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+
+cardio_train <- cardio_train %>% mutate(across(where(is.character), ~ ifelse(is.na(.), mode_impute(.), .)))
+
+numeric_cardio <- cardio_train %>% select(where(is.numeric)) %>% summarise(across(everything(), list(min = min, max = max)))
+
+numeric_cardio
+
+cardio_train <- cardio_train %>% mutate(across(where(is.numeric), ~ ifelse(. < 0, NA, .)))
+
+cardio_train <- cardio_train %>% mutate(across(where(is.numeric), ~ ifelse(is.infinite(.), NA, .)))
+
+write.csv(cardio_train, "C:/Users/sanja/Downloads/tidy_cardio_train.csv", row.names = FALSE)
+
+# Calculate IQR for numeric columns in cardio_train
+iqr_cardio <- cardio_train %>%
+  select(where(is.numeric)) %>%
+  summarise(across(everything(), list(Q1 = ~quantile(., 0.25, na.rm = TRUE),
+                                      Q3 = ~quantile(., 0.75, na.rm = TRUE),
+                                      IQR = ~IQR(., na.rm = TRUE))))
+
+# Detect outliers for each numeric column (values outside 1.5*IQR)
+outliers_cardio <- cardio_train %>%
+  select(where(is.numeric)) %>%
+  mutate(across(everything(), ~ ifelse(. < (quantile(., 0.25, na.rm = TRUE) - 1.5 * IQR(., na.rm = TRUE)) | 
+                                         . > (quantile(., 0.75, na.rm = TRUE) + 1.5 * IQR(., na.rm = TRUE)), 
+                                       "Outlier", "Not Outlier")))
+# View outliers detected in the cardio_train dataset
+outliers_cardio
+
+# Winsorize outliers (capping at 1.5*IQR bounds)
+cardio_train <- cardio_train %>%
+  mutate(across(where(is.numeric), 
+                ~ ifelse(. < (quantile(., 0.25, na.rm = TRUE) - 1.5 * IQR(., na.rm = TRUE)), 
+                         quantile(., 0.25, na.rm = TRUE) - 1.5 * IQR(., na.rm = TRUE),
+                         ifelse(. > (quantile(., 0.75, na.rm = TRUE) + 1.5 * IQR(., na.rm = TRUE)), 
+                                quantile(., 0.75, na.rm = TRUE) + 1.5 * IQR(., na.rm = TRUE), .))))
+
+# View the winsorized dataset
+head(cardio_train)
+
+
+
+```
+
+Here we have,
+
+Identified missing values and handled them using mean and mode imputation.
+
+Detected and managed invalid values, replacing negative and infinite values with NA.
+
+Calculated IQR and flagged outliers, capping extreme values using winsorization.
+
+Saved the updated dataset to ensure reproducibility.
+
+This process ensures a robust dataset by handling missing data, addressing outliers, and correcting invalid entries, thus preparing the dataset for modeling or further analysis.
+
+<br>
+<br>
+
+##	**Scan II**
+
+
+```{r}
+
+missing_medical <- sapply(medical_cost, function(x) sum(is.na(x)) / length(x) * 100)
+missing_medical
+
+medical_cost <- medical_cost %>%  mutate(across(where(is.numeric), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+
+medical_cost <- medical_cost %>% mutate(across(where(is.character), ~ ifelse(is.na(.), mode_impute(.), .)))
+
+numeric_medical <- medical_cost %>% select(where(is.numeric)) %>% summarise(across(everything(), list(min = min, max = max)))
+
+numeric_medical
+
+medical_cost <- medical_cost %>% mutate(across(where(is.numeric), ~ ifelse(. < 0, NA, .)))
+
+medical_cost <- medical_cost %>% mutate(across(where(is.numeric), ~ ifelse(is.infinite(.), NA, .)))
+
+write.csv(medical_cost, "C:/Users/sanja/Downloads/tidy_medical_cost.csv", row.names = FALSE)
+
+iqr_medical <- medical_cost %>%
+  select(where(is.numeric)) %>%
+  summarise(across(everything(), list(Q1 = ~quantile(., 0.25, na.rm = TRUE),
+                                      Q3 = ~quantile(., 0.75, na.rm = TRUE),
+                                      IQR = ~IQR(., na.rm = TRUE))))
+
+outliers_medical <- medical_cost %>%
+  select(where(is.numeric)) %>%
+  mutate(across(everything(), ~ ifelse(. < (quantile(., 0.25) - 1.5 * IQR(.)) | 
+                                         . > (quantile(., 0.75) + 1.5 * IQR(.)), "Outlier", "Not Outlier")))
+
+outliers_medical
+
+medical_cost <- medical_cost %>%
+  mutate(across(where(is.numeric), 
+                ~ ifelse(. < (quantile(., 0.25) - 1.5 * IQR(.)), quantile(., 0.25) - 1.5 * IQR(.), 
+                         ifelse(. > (quantile(., 0.75) + 1.5 * IQR(.)), quantile(., 0.75) + 1.5 * IQR(.), .))))
+
+head(medical_cost)
+
+
+```
+
+Identified missing values and filled them using mean and mode imputation.
+
+Managed invalid data by replacing negative and infinite values with NA.
+
+Calculated IQR to detect outliers and flagged extreme values defining outliers as values outside 1.5 times the IQR. Outliers are either flagged or treated by winsorization, which caps extreme values at the 1.5*IQR boundaries to reduce their impact.
+
+Winsorized outliers by capping them to 1.5 * IQR limits.
+
+Saved the updated dataset to ensure reproducibility.
+
+This approach helps in handling missing values, identifying and correcting data inconsistencies, and managing outliers for a more robust dataset.
+
+<br>
+<br>
+
+##	**Transform **
+
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+
+medical_cost <- read.csv("C:/Users/sanja/Downloads/tidy_medical_cost.csv")
+
+a <- ggplot(medical_cost, aes(x = charges)) + geom_histogram(bins = 30, fill = 'blue', alpha = 0.7) + ggtitle("Distribution of Charges (Before Log Transformation)")
+
+medical_cost <- medical_cost %>% mutate(log_charges = log(charges + 1))  # Adding 1 to avoid log(0)
+
+b <- ggplot(medical_cost, aes(x = log_charges)) + geom_histogram(bins = 30, fill = 'red', alpha = 0.7) + ggtitle("Distribution of Charges (After Log Transformation)")
+
+print(a)
+print(b)
+
+write.csv(medical_cost, "C:/Users/sanja/Downloads/tidy_medical_cost_with_log_charges.csv", row.names = FALSE) 
+
+
+```
+
+Here we have,
+Loaded the dataset and visualized the original distribution of charges using a histogram.
+
+ggplot(medical_cost, aes(x = charges)): Initializes a ggplot object to create a histogram of the charges column from the medical_cost dataset.
+
+Applied a log transformation to charges to reduce skewness and improve the data’s normality.
+
+Visualized the transformed data to confirm the effectiveness of the transformation.
+
+Saved the updated dataset with the new log_charges variable for further analysis.
+
+Log transformations are often applied when the data is skewed. In this case, the charges data likely exhibits positive skewness, with a long right tail. 
+
+By applying a log transformation, the distribution becomes more symmetric, which can enhance the performance of models or visualizations that assume a normal distribution.
+
+
+<br>
+<br>
+
+
